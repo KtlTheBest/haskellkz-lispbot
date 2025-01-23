@@ -1,2 +1,3 @@
 (library
- (name list_bot_dune))
+ (name list_bot_dune)
+ (libraries cohttp-lwt-unix batteries))
