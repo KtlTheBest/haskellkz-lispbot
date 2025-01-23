@@ -278,3 +278,16 @@ let rec eval ctx pctx s =
       )
     )
   | _ -> err (Printf.sprintf "Error: tried to evaluate something weird: %s" (string_of_sexp s))
+
+type state = {
+  pctx: (string * body) list
+}
+
+let run_single_sexp state code =
+  let { pctx } = state in
+  match eval [] pctx code with
+  | Err(s) -> failwith @@ Printf.sprintf "Error happened: %s " s
+  | Ok(_, _, pctx) -> { pctx }
+
+let run_code (code : body list) (state : state) : state =
+  List.fold_left (fun acc s -> run_single_sexp acc s) state code
