@@ -1,0 +1,4 @@
+(executable
+ (public_name list_bot_dune)
+ (name main)
+ (libraries list_bot_dune))
