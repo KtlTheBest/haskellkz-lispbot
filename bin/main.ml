@@ -10,25 +10,19 @@ let () =
   in
   let module Bot = LwtHttpBot(BotToken) in
   Bot.switch_debug_on ();
-  let tasks = 
-    Bot.getMe >>= fun _ ->
-    Bot.peekUpdates >>= fun s ->
-    let upd = Bot.try_construct_message_update s in
-    let f (x : Bot.update) =
-      (match x with
-      | Message(msg_upd) ->
-        let chat_id = msg_upd.chat_id in
-        let contents = msg_upd.contents in
-        (match contents with
-        | Text(s) ->
-          Bot.sendMessageToUser chat_id s >>= fun res ->
-          Printf.printf "%s\n" res;
-          return ()
-        | UnknownContents -> return ())
-      | Unknown(_) ->
-        Printf.printf "%s\n" (Bot.show_update x); return ())
-    in
-    Lwt.join (List.map f upd)
+  let echo_f upd =
+    let open Bot in
+    match upd with
+    | Message(msg_upd) ->
+      let chat_id = msg_upd.chat_id in
+      let contents = msg_upd.contents in
+      (match contents with
+      | Text(s) ->
+        Bot.sendMessageToUser chat_id s >>= fun res ->
+        Printf.printf "%s\n" res;
+        return ()
+      | UnknownContents -> return ())
+    | Unknown(_) ->
+      Printf.printf "%s\n" (Bot.show_update upd); return ()
   in
-  Lwt_main.run tasks |> ignore;
-  ()
+  Bot.poll echo_f

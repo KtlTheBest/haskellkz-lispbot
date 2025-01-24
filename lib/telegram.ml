@@ -97,12 +97,27 @@ module LwtHttpBot(Token: TokenT) = struct
     | NoDebug -> ());
     body
 
+    let make_get_basic_with_args s args =
+      let combined_args = String.concat "&" (List.map (fun (a, b) -> a ^ "=" ^ b) args) in
+      Client.get (Uri.of_string (s ^ "?" ^ combined_args)) >>= fun (resp, body) ->
+      let code = resp |> Response.status |> Code.code_of_status in
+      body |> Cohttp_lwt.Body.to_string >|= fun body ->
+      (match !debug_mode with
+      | Debug -> begin
+        Printf.printf "Response code: %d\n" code;
+        Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);
+        Printf.printf "Body: %s\n" body
+        end
+      | NoDebug -> ());
+      body
+
   let merge_headers ha hb =
     Cohttp.Header.fold 
       (fun a b acc -> Cohttp.Header.add acc a b) 
       ha 
       hb
 
+  let last_update_id = ref 0
   let json_header = Cohttp.Header.of_list ["Content-type", "application/json"]
   let token = Token.token
   let api_prefix = Printf.sprintf "https://api.telegram.org/bot%s" token
@@ -123,6 +138,40 @@ module LwtHttpBot(Token: TokenT) = struct
     let open BatPervasives in
     let open Lwt in
     make_get_basic peekUpdates_string >>= (updates_raw_body_to_yojson %> Lwt.return)
+  
+  let getUpdates () =
+    let getUpdates_string = api_method "getUpdates" in
+    let open BatPervasives in
+    let open Lwt in
+    Printf.printf "DEBUG: last_update_id: %d\n" !last_update_id;
+    let args = [("offset", string_of_int !last_update_id)] in
+    make_get_basic_with_args getUpdates_string args >>= 
+    (updates_raw_body_to_yojson %> Lwt.return)
+  
+  let rec poller f () =
+    getUpdates () >>= fun updates ->
+    let msg_updates = try_construct_message_update updates in
+    let highest_update_id =
+      let extract_update_id = function
+      | Message({ update_id; _ }) -> Some update_id
+      | Unknown _ -> None
+      in
+      msg_updates
+      |> List.map extract_update_id
+      |> List.filter Option.is_some
+      |> List.map Option.get
+      |> List.fold_left max !last_update_id
+    in
+    last_update_id := highest_update_id + 1;
+    msg_updates
+    |> List.map f
+    |> Lwt.join
+    >>= fun _ ->
+    Lwt_unix.sleep 5.0 >>=
+    poller f
+  
+  let poll f =
+    Lwt_main.run (poller f ())
   
   let sendMessageToUser chat_id msg =
     let sendMessageToUser_string = api_method "sendMessage" in
