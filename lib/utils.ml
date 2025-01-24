@@ -29,7 +29,7 @@ let get_token_or_ask_user_for_one () =
     let token = prompt "Provide telegram bot token: " in
     create_dir_if_does_not_exist config;
     BatFile.with_file_out telebot_token (
-      fun f -> BatIO.write_string f token
+      fun f -> BatIO.write_line f token
     );
     token
   end

@@ -1,3 +1,4 @@
 (library
  (name list_bot_dune)
- (libraries cohttp-lwt-unix batteries))
+ (preprocess (pps ppx_deriving.show))
+ (libraries cohttp-lwt-unix batteries yojson))
