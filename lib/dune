@@ -2,3 +2,9 @@
  (name list_bot_dune)
  (preprocess (pps ppx_deriving.show))
  (libraries cohttp-lwt-unix batteries yojson))
+
+(ocamllex
+ (modules lexer))
+
+(menhir
+ (modules parser))
